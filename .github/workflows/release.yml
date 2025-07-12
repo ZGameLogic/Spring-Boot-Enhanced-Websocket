@@ -1,13 +1,8 @@
-name: Spring-Boot-Starter-Discord
-
-#on:
-#  release:
-#    types: [created]
+name: Spring-Boot-Enhanced-Websocket
 
 on:
-  push:
-    branches:
-      - main
+  release:
+    types: [created]
 
 jobs:
   publish:
