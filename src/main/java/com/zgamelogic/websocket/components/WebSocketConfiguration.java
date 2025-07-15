@@ -1,4 +1,4 @@
-package com.zgamelogic.websocket;
+package com.zgamelogic.websocket.components;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
@@ -8,10 +8,10 @@ import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry
 
 @Configuration
 @EnableWebSocket
-public class WebsocketConfiguration implements WebSocketConfigurer {
-    private final WebsocketController websocketController;
+public class WebSocketConfiguration implements WebSocketConfigurer {
+    private final WebSocketController websocketController;
     private final String endpoint;
-    public WebsocketConfiguration(WebsocketController websocketController, @Value("${websocket.endpoint}") String endpoint) {
+    public WebSocketConfiguration(WebSocketController websocketController, @Value("${websocket.endpoint}") String endpoint) {
         this.websocketController = websocketController;
         this.endpoint = endpoint.replaceFirst("^/", "");
     }

@@ -1,4 +1,4 @@
-name: Spring-Boot-Enhanced-Websocket
+name: Spring-Boot-Enhanced-WebSocket
 
 on:
   release:

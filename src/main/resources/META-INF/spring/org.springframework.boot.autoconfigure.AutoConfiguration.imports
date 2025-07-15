@@ -1,3 +1,4 @@
-com.zgamelogic.websocket.WebsocketController
-com.zgamelogic.websocket.WebsocketConfiguration
-com.zgamelogic.websocket.WebsocketDispatcher
+com.zgamelogic.websocket.components.WebSocketController
+com.zgamelogic.websocket.components.WebSocketConfiguration
+com.zgamelogic.websocket.components.WebSocketDispatcher
+com.zgamelogic.websocket.components.WebSocketService

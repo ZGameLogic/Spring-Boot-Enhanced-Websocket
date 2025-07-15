@@ -1,4 +1,4 @@
-package com.zgamelogic.websocket;
+package com.zgamelogic.websocket.components;
 
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Controller;
@@ -9,21 +9,21 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 @Controller
 @AllArgsConstructor
-public class WebsocketController extends TextWebSocketHandler {
-    private final WebsocketDispatcher websocketDispatcher;
+public class WebSocketController extends TextWebSocketHandler {
+    private final WebSocketDispatcher websocketDispatcher;
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
-        super.afterConnectionEstablished(session);
+        websocketDispatcher.connectionEstablished(session);
     }
 
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
-        super.handleTextMessage(session, message);
+        websocketDispatcher.dispatch(session, message);
     }
 
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) throws Exception {
-        super.afterConnectionClosed(session, status);
+        websocketDispatcher.connectionClosed(session);
     }
 }

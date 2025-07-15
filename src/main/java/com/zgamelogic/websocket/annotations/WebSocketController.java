@@ -4,8 +4,8 @@ import org.springframework.stereotype.Component;
 
 import java.lang.annotation.*;
 
+@Component
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
-@Component
-public @interface WebsocketController {}
+public @interface WebSocketController {}
