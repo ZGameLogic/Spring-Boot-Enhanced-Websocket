@@ -6,6 +6,6 @@ import java.lang.annotation.*;
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
 public @interface WebSocketMapping {
-    String id();
+    String Id();
     String SubId() default "";
 }
