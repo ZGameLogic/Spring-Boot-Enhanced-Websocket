@@ -138,7 +138,25 @@ public class WebSocketDispatcher {
                 if(classes.contains(current)){
                     Object[] params = resolveParamsForExceptionMethod(exceptionMethod.method, session, webSocketMessage, e.getTargetException());
                     exceptionMethod.method.setAccessible(true);
-                    exceptionMethod.method.invoke(controllerMethod.controller, params);
+                    Object returns = exceptionMethod.method.invoke(controllerMethod.controller, params);
+                    if(returns == null) return;
+                    WebSocketMessage returnMessage;
+                    if(returns instanceof WebSocketMessage){
+                        returnMessage = (WebSocketMessage) returns;
+                    } else {
+                        returnMessage = new WebSocketMessage(webSocketMessage.getType(), webSocketMessage.getSubtype(), webSocketMessage.getReplyId(), 400, returns);
+                    }
+                    String returnMessageJson;
+                    try {
+                        if (exceptionMethod.method.isAnnotationPresent(JsonView.class) && exceptionMethod.method.getAnnotation(JsonView.class).value() != null) {
+                            returnMessageJson = objectMapper.writerWithView(exceptionMethod.method.getAnnotation(JsonView.class).value()[0]).writeValueAsString(returnMessage);
+                        } else {
+                            returnMessageJson = objectMapper.writeValueAsString(returnMessage);
+                        }
+                        webSocketService.sendMessage(session, new TextMessage(returnMessageJson));
+                    } catch (JsonProcessingException exception){
+                        log.error("Unable to send error through websocket. {}", exception.getMessage());
+                    }
                     return;
                 }
                 current = current.getSuperclass();
