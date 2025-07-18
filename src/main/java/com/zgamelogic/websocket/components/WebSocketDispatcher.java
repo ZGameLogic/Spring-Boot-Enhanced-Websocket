@@ -59,7 +59,7 @@ public class WebSocketDispatcher {
             for(Method method: bean.getClass().getDeclaredMethods()){
                 if(!method.isAnnotationPresent(WebSocketMapping.class)) continue;
                 WebSocketMapping mapping = method.getAnnotation(WebSocketMapping.class);
-                String key = mapping.Id() + ":" + mapping.SubId();
+                String key = mapping.type() + ":" + mapping.subtype();
                 ControllerMethod methodHandle = new ControllerMethod(bean, method);
                 log.debug("Adding mappings for method: {}", method.getName());
                 log.debug("\tMapping ID: {}", key);
