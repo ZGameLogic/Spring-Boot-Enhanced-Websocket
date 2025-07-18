@@ -1,5 +1,6 @@
 package com.zgamelogic.websocket.components;
 
+import com.fasterxml.jackson.annotation.JsonView;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zgamelogic.websocket.annotations.WebSocketController;
@@ -59,7 +60,7 @@ public class WebSocketDispatcher {
             for(Method method: bean.getClass().getDeclaredMethods()){
                 if(!method.isAnnotationPresent(WebSocketMapping.class)) continue;
                 WebSocketMapping mapping = method.getAnnotation(WebSocketMapping.class);
-                String key = mapping.Id() + (!mapping.SubId().isEmpty() ? ":" + mapping.SubId() : "");
+                String key = mapping.Id() + ":" + mapping.SubId();
                 ControllerMethod methodHandle = new ControllerMethod(bean, method);
                 log.debug("Adding mappings for method: {}", method.getName());
                 log.debug("\tMapping ID: {}", key);
@@ -103,14 +104,23 @@ public class WebSocketDispatcher {
                 Method method = controllerMethod.method();
                 Object[] params = resolveParamsForControllerMethod(method, session, webSocketMessage);
                 method.setAccessible(true);
-                method.invoke(controllerMethod.controller(), params);
+                Object returns = method.invoke(controllerMethod.controller(), params);
+                // TODO actually finish this. Need to return a message to the user
+                if(returns == null) return;
+                String returnJson;
+                if(method.isAnnotationPresent(JsonView.class) && method.getAnnotation(JsonView.class).value() != null){
+                    returnJson = objectMapper.writerWithView(method.getAnnotation(JsonView.class).value()[0]).writeValueAsString(returns);
+                } else {
+                    returnJson = objectMapper.writeValueAsString(returns);
+                }
+                webSocketService.sendMessage(session, );
             } catch (InvocationTargetException e){
                 try {
                     throwControllerException(controllerMethod, session, webSocketMessage, e);
                 } catch (InvocationTargetException | IllegalAccessException ex) {
                     throw new RuntimeException(ex);
                 }
-            } catch (IllegalAccessException e) {
+            } catch (IllegalAccessException | JsonProcessingException e) {
                 throw new RuntimeException(e);
             }
         });
