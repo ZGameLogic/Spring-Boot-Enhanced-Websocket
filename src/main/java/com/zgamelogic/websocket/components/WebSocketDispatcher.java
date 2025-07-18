@@ -3,9 +3,8 @@ package com.zgamelogic.websocket.components;
 import com.fasterxml.jackson.annotation.JsonView;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.zgamelogic.websocket.annotations.*;
 import com.zgamelogic.websocket.annotations.WebSocketController;
-import com.zgamelogic.websocket.annotations.WebSocketExceptionHandler;
-import com.zgamelogic.websocket.annotations.WebSocketMapping;
 import com.zgamelogic.websocket.data.WebSocketAuthorization;
 import com.zgamelogic.websocket.data.WebSocketMessage;
 import jakarta.annotation.PostConstruct;
@@ -97,7 +96,7 @@ public class WebSocketDispatcher {
             log.debug("{}", e.getMessage());
             return;
         }
-        String eventKey = webSocketMessage.getType() + ":" + (webSocketMessage.getSubtype() != null ? webSocketMessage.getType() + webSocketMessage.getSubtype() : "");
+        String eventKey = webSocketMessage.getType() + ":" + (webSocketMessage.getSubtype() != null ? webSocketMessage.getSubtype() : "");
         log.debug("Mapping ID: {}", eventKey);
         controllerMappings.getOrDefault(eventKey, new ArrayList<>()).forEach(controllerMethod -> {
             try {
@@ -105,23 +104,28 @@ public class WebSocketDispatcher {
                 Object[] params = resolveParamsForControllerMethod(method, session, webSocketMessage);
                 method.setAccessible(true);
                 Object returns = method.invoke(controllerMethod.controller(), params);
-                // TODO actually finish this. Need to return a message to the user
                 if(returns == null) return;
-                String returnJson;
-                if(method.isAnnotationPresent(JsonView.class) && method.getAnnotation(JsonView.class).value() != null){
-                    returnJson = objectMapper.writerWithView(method.getAnnotation(JsonView.class).value()[0]).writeValueAsString(returns);
+                WebSocketMessage returnMessage;
+                if(returns instanceof WebSocketMessage){
+                    returnMessage = (WebSocketMessage) returns;
                 } else {
-                    returnJson = objectMapper.writeValueAsString(returns);
+                    returnMessage = new WebSocketMessage(webSocketMessage.getType(), webSocketMessage.getSubtype(), webSocketMessage.getReplyId(), returns);
                 }
-                webSocketService.sendMessage(session, );
+                String returnMessageJson;
+                if(method.isAnnotationPresent(JsonView.class) && method.getAnnotation(JsonView.class).value() != null){
+                    returnMessageJson = objectMapper.writerWithView(method.getAnnotation(JsonView.class).value()[0]).writeValueAsString(returnMessage);
+                } else {
+                    returnMessageJson = objectMapper.writeValueAsString(returnMessage);
+                }
+                webSocketService.sendMessage(session, new TextMessage(returnMessageJson));
             } catch (InvocationTargetException e){
                 try {
                     throwControllerException(controllerMethod, session, webSocketMessage, e);
                 } catch (InvocationTargetException | IllegalAccessException ex) {
-                    throw new RuntimeException(ex);
+                    log.error("Unable to dispatch websocket exception event.", e);
                 }
-            } catch (IllegalAccessException | JsonProcessingException e) {
-                throw new RuntimeException(e);
+            } catch (IllegalArgumentException | JsonProcessingException | IllegalAccessException e) {
+                log.error("Unable to dispatch websocket event.", e);
             }
         });
     }
@@ -155,8 +159,21 @@ public class WebSocketDispatcher {
         List<Object> params = new ArrayList<>();
         if (parameters == null) return params.toArray();
         for(Parameter parameter : parameters){
-            if (message.getData() != null && parameter.getType().isAssignableFrom(message.getData().getClass())) {
-                params.add(message.getData());
+            if (message.getData() != null && parameter.isAnnotationPresent(WebSocketData.class)) {
+                try {
+                    Object converted = objectMapper.convertValue(message.getData(), parameter.getType());
+                    params.add(converted);
+                    continue;
+                } catch (Exception e) {
+                    log.debug("Cannot convert LinkedHashMap to {}", parameter.getType().getName());
+                    params.add(null);
+                    continue;
+                }
+            }
+            if(parameter.isAnnotationPresent(WebSocketAttribute.class)){
+                WebSocketAttribute attribute = parameter.getAnnotation(WebSocketAttribute.class);
+                String key = attribute.value().isEmpty() ? parameter.getName() : attribute.value();
+                params.add(session.getAttributes().get(key));
                 continue;
             }
             if(parameter.getType().isAssignableFrom(session.getClass())){
@@ -174,12 +191,7 @@ public class WebSocketDispatcher {
                 params.add(null);
                 continue;
             }
-            String attributeName = parameter.getName();
-            if(!session.getAttributes().containsKey(attributeName)){
-                log.debug("No attribute found for parameter '{}'", attributeName);
-                continue;
-            }
-            params.add(session.getAttributes().get(attributeName));
+            params.add(null);
         }
         return params.toArray();
     }
