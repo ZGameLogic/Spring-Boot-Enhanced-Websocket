@@ -1,7 +1,7 @@
 package com.zgamelogic.websocket.components;
 
 import com.zgamelogic.websocket.data.WebSocketAuthorization;
-import com.zgamelogic.websocket.data.WebSocketMessageException;
+import com.zgamelogic.websocket.exceptions.WebSocketMessageException;
 import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.web.socket.TextMessage;

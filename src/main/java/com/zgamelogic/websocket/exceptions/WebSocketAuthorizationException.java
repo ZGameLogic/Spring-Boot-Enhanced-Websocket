@@ -1,4 +1,4 @@
-package com.zgamelogic.websocket.data;
+package com.zgamelogic.websocket.exceptions;
 
 public class WebSocketAuthorizationException extends RuntimeException {
     public WebSocketAuthorizationException(String message) {

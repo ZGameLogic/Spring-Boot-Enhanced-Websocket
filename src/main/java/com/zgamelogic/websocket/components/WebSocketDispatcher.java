@@ -1,9 +1,12 @@
 package com.zgamelogic.websocket.components;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zgamelogic.websocket.annotations.WebSocketController;
 import com.zgamelogic.websocket.annotations.WebSocketExceptionHandler;
 import com.zgamelogic.websocket.annotations.WebSocketMapping;
 import com.zgamelogic.websocket.data.WebSocketAuthorization;
+import com.zgamelogic.websocket.data.WebSocketMessage;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
@@ -15,7 +18,9 @@ import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -31,10 +36,18 @@ public class WebSocketDispatcher {
     private final Map<String, List<ControllerMethod>> controllerMappings;
     private final Map<Class<?>, List<ExceptionMethod>> exceptions;
 
-    public WebSocketDispatcher(ApplicationContext applicationContext, WebSocketService webSocketService, @Nullable WebSocketAuthorization webSocketAuthorization) {
+    private final ObjectMapper objectMapper;
+
+    public WebSocketDispatcher(
+        ApplicationContext applicationContext,
+        WebSocketService webSocketService,
+        @Nullable WebSocketAuthorization webSocketAuthorization,
+        ObjectMapper objectMapper
+    ) {
         this.applicationContext = applicationContext;
         this.webSocketService = webSocketService;
         this.webSocketAuthorization = webSocketAuthorization;
+        this.objectMapper = objectMapper;
         controllerMappings = new HashMap<>();
         exceptions = new HashMap<>();
     }
@@ -75,10 +88,90 @@ public class WebSocketDispatcher {
     }
 
     public void dispatch(WebSocketSession session, TextMessage message){
-        // TODO find method
-        // TODO map params
-        // TODO call method with params
-        // TODO handle exceptions
+        WebSocketMessage webSocketMessage;
+        try {
+            webSocketMessage = objectMapper.readValue(message.getPayload(), WebSocketMessage.class);
+        } catch (JsonProcessingException e){
+            log.debug("Caught a non json message in our websocket. Probably not meant for me.");
+            log.debug("{}", e.getMessage());
+            return;
+        }
+        String eventKey = webSocketMessage.getType() + ":" + (webSocketMessage.getSubtype() != null ? webSocketMessage.getType() + webSocketMessage.getSubtype() : "");
+        log.debug("Mapping ID: {}", eventKey);
+        controllerMappings.getOrDefault(eventKey, new ArrayList<>()).forEach(controllerMethod -> {
+            try {
+                Method method = controllerMethod.method();
+                Object[] params = resolveParamsForControllerMethod(method, session, webSocketMessage);
+                method.setAccessible(true);
+                method.invoke(controllerMethod.controller(), params);
+            } catch (InvocationTargetException e){
+                try {
+                    throwControllerException(controllerMethod, session, webSocketMessage, e);
+                } catch (InvocationTargetException | IllegalAccessException ex) {
+                    throw new RuntimeException(ex);
+                }
+            } catch (IllegalAccessException e) {
+                throw new RuntimeException(e);
+            }
+        });
+    }
+
+    private void throwControllerException(ControllerMethod controllerMethod, WebSocketSession session, WebSocketMessage webSocketMessage, InvocationTargetException e) throws InvocationTargetException, IllegalAccessException {
+        for (ExceptionMethod exceptionMethod : exceptions.getOrDefault(controllerMethod.controller.getClass(), new ArrayList<>())) {
+            List<Class<?>> classes = List.of(exceptionMethod.annotation.value());
+            Class<?> current = e.getTargetException().getClass();
+            while(current != null){
+                if(classes.contains(current)){
+                    Object[] params = resolveParamsForExceptionMethod(exceptionMethod.method, session, webSocketMessage, e.getTargetException());
+                    exceptionMethod.method.setAccessible(true);
+                    exceptionMethod.method.invoke(controllerMethod.controller, params);
+                    return;
+                }
+                current = current.getSuperclass();
+            }
+        }
+        throw new RuntimeException(e);
+    }
+
+    private Object[] resolveParamsForControllerMethod(Method method, WebSocketSession session, WebSocketMessage webSocketMessage) {
+        return resolveParamsForArray(session, webSocketMessage, null, method.getParameters());
+    }
+
+    private Object[] resolveParamsForExceptionMethod(Method method, WebSocketSession session, WebSocketMessage webSocketMessage, Throwable throwable) {
+        return resolveParamsForArray(session, webSocketMessage, throwable, method.getParameters());
+    }
+
+    private Object[] resolveParamsForArray(WebSocketSession session, WebSocketMessage message, Throwable throwable, Parameter...parameters){
+        List<Object> params = new ArrayList<>();
+        if (parameters == null) return params.toArray();
+        for(Parameter parameter : parameters){
+            if (message.getData() != null && parameter.getType().isAssignableFrom(message.getData().getClass())) {
+                params.add(message.getData());
+                continue;
+            }
+            if(parameter.getType().isAssignableFrom(session.getClass())){
+                params.add(session);
+                continue;
+            }
+            if(parameter.getType().isAssignableFrom(message.getClass())){
+                params.add(message);
+                continue;
+            }
+            if (throwable != null && parameter.getType().isAssignableFrom(throwable.getClass())) { // if it's the throwable
+                params.add(throwable);
+                continue;
+            } else if(Throwable.class.isAssignableFrom(parameter.getType())){
+                params.add(null);
+                continue;
+            }
+            String attributeName = parameter.getName();
+            if(!session.getAttributes().containsKey(attributeName)){
+                log.debug("No attribute found for parameter '{}'", attributeName);
+                continue;
+            }
+            params.add(session.getAttributes().get(attributeName));
+        }
+        return params.toArray();
     }
 
     public void connectionEstablished(WebSocketSession session){
