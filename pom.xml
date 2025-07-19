@@ -7,7 +7,7 @@
     <name>Spring Boot Enhanced Web Socket</name>
     <groupId>com.zgamelogic</groupId>
     <artifactId>spring-boot-enhanced-websocket</artifactId>
-    <version>0.0.3</version>
+    <version>0.0.4</version>
     <description>An enhanced version of springs starter websocket</description>
     <url>https://github.com/ZGameLogic/Spring-Boot-Enhanced-Websocket</url>
 
