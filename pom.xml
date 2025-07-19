@@ -7,7 +7,7 @@
     <name>Spring Boot Enhanced Web Socket</name>
     <groupId>com.zgamelogic</groupId>
     <artifactId>spring-boot-enhanced-websocket</artifactId>
-    <version>0.0.4</version>
+    <version>0.0.5</version>
     <description>An enhanced version of springs starter websocket</description>
     <url>https://github.com/ZGameLogic/Spring-Boot-Enhanced-Websocket</url>
 
@@ -33,6 +33,11 @@
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>jakarta.transaction</groupId>
+            <artifactId>jakarta.transaction-api</artifactId>
         </dependency>
     </dependencies>
 

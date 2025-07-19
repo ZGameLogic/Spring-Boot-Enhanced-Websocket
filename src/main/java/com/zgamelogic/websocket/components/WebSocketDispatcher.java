@@ -8,6 +8,7 @@ import com.zgamelogic.websocket.annotations.WebSocketController;
 import com.zgamelogic.websocket.data.WebSocketAuthorization;
 import com.zgamelogic.websocket.data.WebSocketMessage;
 import jakarta.annotation.PostConstruct;
+import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
 import org.springframework.core.annotation.AnnotationUtils;
@@ -87,6 +88,7 @@ public class WebSocketDispatcher {
         }
     }
 
+    @Transactional
     public void dispatch(WebSocketSession session, TextMessage message){
         WebSocketMessage webSocketMessage;
         try {
