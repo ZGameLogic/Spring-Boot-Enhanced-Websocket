@@ -11,6 +11,7 @@ import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry
 public class WebSocketConfiguration implements WebSocketConfigurer {
     private final WebSocketController websocketController;
     private final String endpoint;
+
     public WebSocketConfiguration(WebSocketController websocketController, @Value("${websocket.endpoint}") String endpoint) {
         this.websocketController = websocketController;
         this.endpoint = endpoint.replaceFirst("^/", "");

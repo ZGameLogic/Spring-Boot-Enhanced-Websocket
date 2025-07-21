@@ -90,6 +90,7 @@ public class WebSocketDispatcher {
 
     @Transactional
     public void dispatch(WebSocketSession session, TextMessage message){
+        if(webSocketAuthorization != null && !webSocketAuthorization.authorizedSession(session)) return;
         WebSocketMessage webSocketMessage;
         try {
             webSocketMessage = objectMapper.readValue(message.getPayload(), WebSocketMessage.class);
