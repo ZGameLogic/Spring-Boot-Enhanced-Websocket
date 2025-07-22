@@ -119,7 +119,23 @@ public class WebSocketDispatcher {
                 } else {
                     returnMessageJson = objectMapper.writeValueAsString(returnMessage);
                 }
-                webSocketService.sendMessage(session, new TextMessage(returnMessageJson));
+                TextMessage textMessage = new TextMessage(returnMessageJson);
+                if(method.isAnnotationPresent(WebSocketReply.class)){
+                    WebSocketReply annotation = method.getAnnotation(WebSocketReply.class);
+                    switch(annotation.value()){
+                        case ALL -> webSocketService.sendMessageToAll(textMessage);
+                        case ATTRIBUTE -> {
+                            String attribute = annotation.attribute();
+                            if(!attribute.isEmpty()) {
+                                Object val = session.getAttributes().get(attribute);
+                                webSocketService.sendMessageToAttribute(attribute, val, textMessage);
+                            }
+                        }
+                        case SESSION -> webSocketService.sendMessage(session, textMessage);
+                    }
+                } else {
+                    webSocketService.sendMessage(session, textMessage);
+                }
             } catch (InvocationTargetException e){
                 try {
                     throwControllerException(controllerMethod, session, webSocketMessage, e);
